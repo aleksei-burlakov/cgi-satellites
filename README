@@ -1,0 +1,62 @@
+The “Satellites” software is aimed to compute time intervals when the maximum number of satellites is available.
+
+INSTALLING
+
+To compile the project the cmake, gcc-multilib and g++-multilib are required. To install them in Ubuntu use
+
+$ sudo apt-get install cmake gcc-multilib g++-multilib
+
+To compile the project, go to the directory where you want the project to be installed and run the commands
+
+$ cmake <path-to-the-root-of-the-project>
+$ make
+
+USING THE PROGRAM
+
+After compiling the project an executable file satellites.ui will be created in the installation directory. Run satellites.ui with a path to the data file containing time intervals as a parameter.
+
+$ satellites.ui <path-to-intervals>
+
+SOURCE CODE STRUCTURE
+
+The project consists of five modules.
+
+1) googletest is a C++ test framework ( see https://github.com/google/googletest )
+2) satellites.compilation computes times intervals with the maximum number of available satellites.
+3) satellites.misc parses a file with time intervals.
+4) satellites.test uses googletest framework to test the satellites.computation and satellites.misc modules.
+5) satellites.ui provides a user interface.
+
+APPROACH
+
+1) Parse a file into a list of time slots [begin,end]
+
+2) Add 1ms to the end time of each time slot to exclude the last millisecond. [begin, end)
+
+3) Put all intervals on a timeline
+
+|----------------------------------------------------------------->
+0         [      [         )        )                            t,ms
+
+We use a std::multimap<unsigned,int> timeMap variable to store the timeline. The first parameter (key) of the map is a time stamp at which an event occurs. The second parameter (value) describes the event. If a satellite appears at a timestamp, then the value is 1, if a satellite disappeared, then the value is -1. (If there n satellites appear, then the values is n, if n satellites disappear then the value is -n). We use multimap instead of map, because there might be more than one events occur at a time stamp.
+
+4) Iterate over the timeline and accumulate the values (take care of the cases when being > end in [begin,end)). Accumulation gives a number of satellites available at a time stamp.
+
+5) The depth within the brackets is the number of satellites available. Find the maximum depth of the brackets.
+
+6) Find time slots when with the maximum depth. (Take care, that there could be time intervals when [begin,end), begin > end. (This is possible if the time is recorded in another time zone)).
+
+7) Print the time slots and maxSatellites value.
+
+ALTERNATIVE SOLUTIONS
+
+Inserting a pair into the timeMap takes O(log n) time. Inserting n elements into the map takes O(n log n) time. When the number of satellites gets rather big, this might become an issue.
+Since we don’t take into account the date and the precision is milliseconds, we can use an array of 86 400 000 + 1 integers to store the timeline, where an index corresponds to a timestamp and value is the number of satellites at the time stamp. (Additional (+1) ms we need, because we add 1 millisecond to each time interval). Putting time stamps on a timeline would require O(n) time. 
+The issue of using an array of 86400000 elements is that it requires additionally ~330MB of memory (using int32_t items). Besides, iterating over this array will take longer (~1s on I-Core I5 2.5GHz) than iterating over a map of a small number of satellites (> 1ms on I-Core I5 2.5GHz). 
+Knowing that the number of satellites is rather small and assuming it will not get extremely large (millions) in the nearest future we decide to use a multimap instead of an array.
+
+FUTURE IMPROVEMENTS
+
+- Make support for the 60th (leap) second.
+- Make support for other time formats.
+- Implement a ‘--help’ key to the application.
